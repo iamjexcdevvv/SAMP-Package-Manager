@@ -1,7 +1,8 @@
 const { Command } = require("commander");
 const program = new Command();
 
-const { installPackage, initSPM } = require("./index");
+const initSPM = require("./spm-init");
+const installPackage = require("./package-management");
 
 program
 	.name("SAMP Package Manager")
