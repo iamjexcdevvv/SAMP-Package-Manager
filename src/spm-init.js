@@ -85,8 +85,13 @@ async function initSPM(options) {
 			repo: response.packageName,
 		};
 
-		fs.writeFileSync("pawn.json", JSON.stringify(spmConfig, null, 4));
-		console.log("SPM: initialized");
+        const formattedStr = JSON.stringify(spmConfig, null, 4);
+
+		fs.writeFileSync("pawn.json", formattedStr);
+
+		const configPath = path.join(process.cwd(), "pawn.json");
+		console.log(`Wrote to ${configPath}\n`);
+        console.log(formattedStr);
 	} catch (error) {
 		console.log(error);
 	}
