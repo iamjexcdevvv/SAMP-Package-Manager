@@ -16,7 +16,7 @@ function isPawnConfigFileFound() {
 	return fs.existsSync(configFilePath);
 }
 
-function extractPackageNameAndOwner(package) {
+function extractDependencyInfo(package) {
 	const separatorIdx = package.indexOf("/");
 	const username = package.slice(0, separatorIdx);
 	const repo = package.slice(separatorIdx + 1);
@@ -44,7 +44,7 @@ module.exports = {
 	isValidPackageFormat,
 	formatJSON,
 	isPawnConfigFileFound,
-	extractPackageNameAndOwner,
+	extractDependencyInfo,
 	updatePawnConfigFile,
 	getCachedDependenciesDir,
 };
