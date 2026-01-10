@@ -9,6 +9,9 @@ const fs = require("fs");
 
 const prompts = require("prompts");
 
+// Custom modules
+const { formatJSON } = require("./utils");
+
 const USERNAME = os.userInfo().username;
 const PACKAGENAME = path.parse(process.cwd()).base;
 
@@ -48,8 +51,11 @@ const promptQuestions = [
 ];
 
 async function initSPM(options) {
-    let isAddDevFiles = true, isAddReadme = true, isInitializeGit = true;
-    let username = USERNAME, packageName = PACKAGENAME;
+	let isAddDevFiles = true,
+		isAddReadme = true,
+		isInitializeGit = true;
+	let username = USERNAME,
+		packageName = PACKAGENAME;
 
 	if (!options.yes) {
 		const onCancel = (prompt) => {
@@ -57,13 +63,13 @@ async function initSPM(options) {
 			process.exit(1);
 		};
 
-        const response = await prompts(promptQuestions, { onCancel });
+		const response = await prompts(promptQuestions, { onCancel });
 
-        isAddDevFiles = response.devFiles;
-        isAddReadme = response.readmeFile;
-        isInitializeGit = response.gitinit;
-        username = response.username;
-        packageName = response.packageName;
+		isAddDevFiles = response.devFiles;
+		isAddReadme = response.readmeFile;
+		isInitializeGit = response.gitinit;
+		username = response.username;
+		packageName = response.packageName;
 	}
 
 	try {
@@ -91,13 +97,13 @@ async function initSPM(options) {
 			repo: packageName,
 		};
 
-        const formattedStr = JSON.stringify(spmConfig, null, 4);
+		const formattedStr = formatJSON(spmConfig, 4);
 
 		fs.writeFileSync("pawn.json", formattedStr);
 
 		const configPath = path.join(process.cwd(), "pawn.json");
 		console.log(`Wrote to ${configPath}\n`);
-        console.log(formattedStr);
+		console.log(formattedStr);
 	} catch (error) {
 		console.log(error);
 	}

@@ -13,10 +13,8 @@ const unzipper = require("unzipper");
 
 const { pipeline } = require("stream/promises");
 
-function isValidPackageFormat(package) {
-	const regex = /^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/;
-	return regex.test(package);
-}
+// Custom modules
+const { isValidPackageFormat, formatJSON } = require("./utils");
 
 async function installPackage(package) {
 	const isValid = isValidPackageFormat(package);
@@ -75,7 +73,7 @@ async function installPackage(package) {
 				lastUsed: new Date().toISOString(),
 			};
 
-			fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 4));
+			fs.writeFileSync(metadataPath, formatJSON(metadata, 4));
 		} else {
 			branch = metadata[package].branch;
 		}
@@ -136,13 +134,14 @@ async function installPackage(package) {
 			dependencies.push(package);
 			configData.dependencies = dependencies;
 
-			const formattedStr = JSON.stringify(configData, null, 4);
+			const formattedStr = formatJSON(configData, 4);
 			fs.writeFileSync("pawn.json", formattedStr);
 		}
 
 		console.log(`SPM: ${package} has been succesfully installed`);
 	} catch (error) {
-		console.log("Error: SPM encountered an error");
+		console.log(error);
+		// console.log("Error: SPM encountered an error");
 	}
 }
 
