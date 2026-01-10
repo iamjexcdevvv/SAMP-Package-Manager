@@ -1,24 +1,33 @@
 const userConfig = require("../spm-config.json");
 const personalToken = userConfig.github_token || process.env.GITHUB_TOKEN;
 
+// Core Modules
+const fs = require("fs");
+const path = require("path");
+
 // Third-Party modules
 const { Octokit } = require("octokit");
-const octokit = new Octokit({ auth: personalToken });
+const octokit = new Octokit({ auth: personalToken, timeout: 10000 });
 
 const unzipper = require("unzipper");
 
 const { pipeline } = require("stream/promises");
 
-function isValidPackageFormat(package) {
-	const regex = /^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/;
-	return regex.test(package);
-}
+// Custom modules
+const { isValidPackageFormat, formatJSON } = require("./utils");
 
 async function installPackage(package) {
 	const isValid = isValidPackageFormat(package);
 
 	if (!isValid) {
-		console.error("Error: Invalid format. Use username/repo");
+		console.error("SPM: Invalid format. Use username/repo");
+		process.exit(1);
+	}
+
+	const configFilePath = path.join(process.cwd(), "pawn.json");
+
+	if (!fs.existsSync(configFilePath)) {
+		console.error("SPM: Can't find the configuration file");
 		process.exit(1);
 	}
 
@@ -42,12 +51,32 @@ async function installPackage(package) {
 		if (!fs.existsSync(cacheDir))
 			fs.mkdirSync(cacheDir, { recursive: true });
 
-		const { data } = await octokit.rest.repos.get({
-			owner: username,
-			repo: repo,
-		});
+		let branch;
+		let metadata = {};
+		const metadataPath = path.join(cacheDir, "metadata.json");
 
-		const branch = data.default_branch;
+		if (fs.existsSync(metadataPath)) {
+			metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+		}
+
+		if (!metadata[package]) {
+			const { data } = await octokit.rest.repos.get({
+				owner: username,
+				repo: repo,
+			});
+
+			branch = data.default_branch;
+
+			metadata[package] = {
+				branch,
+				cachedAt: new Date().toISOString(),
+				lastUsed: new Date().toISOString(),
+			};
+
+			fs.writeFileSync(metadataPath, formatJSON(metadata, 4));
+		} else {
+			branch = metadata[package].branch;
+		}
 
 		const cachedPackagePath = path.join(cacheDir, `${repo}-${branch}`);
 
@@ -78,12 +107,41 @@ async function installPackage(package) {
 			fs.unlinkSync(tempZipPath);
 		}
 
-		fs.cpSync(extractedFolder, targetFolder, { recursive: true });
+		const pattern = path.join(
+			process.cwd(),
+			"samp_modules",
+			repo,
+			"**/*.inc"
+		);
+		let fileFound = false;
+
+		for await (const file of fs.promises.glob(pattern)) {
+			if (file) {
+				fileFound = true;
+				break;
+			}
+		}
+
+		if (!fileFound) {
+			fs.cpSync(extractedFolder, targetFolder, { recursive: true });
+		}
+
+		const config = await fs.promises.readFile(configFilePath, "utf8");
+		const configData = JSON.parse(config);
+		const dependencies = configData.dependencies || [];
+
+		if (!dependencies.includes(package)) {
+			dependencies.push(package);
+			configData.dependencies = dependencies;
+
+			const formattedStr = formatJSON(configData, 4);
+			fs.writeFileSync("pawn.json", formattedStr);
+		}
 
 		console.log(`SPM: ${package} has been succesfully installed`);
 	} catch (error) {
-		console.log(error);
+		console.log("Error: SPM encountered an error");
 	}
 }
 
-module.exports = installPackage
+module.exports = installPackage;
