@@ -2,7 +2,7 @@ const { Command } = require("commander");
 const program = new Command();
 
 const initSPM = require("./spm-init");
-const { installPackage, uninstallPackage } = require("./dependency");
+const { installPackage, uninstallPackage, clearCachedDependencies } = require("./dependency");
 
 program
 	.name("SAMP Package Manager")
@@ -22,6 +22,12 @@ program
 	.description("Uninstall a specified dependency")
 	.argument("<package>", "A dependency to uninstall")
 	.action((package) => uninstallPackage(package));
+	
+program
+	.command("cache")
+	.description("Cleanup cached dependencies")
+	.requiredOption("--clean", "Option to cleanup cached dependencies")
+	.action((options) => clearCachedDependencies(options));
 
 program
 	.command("init")

@@ -20,6 +20,7 @@ const {
 	isPawnConfigFileFound,
 	extractPackageNameAndOwner,
 	updatePawnConfigFile,
+	getCachedDependenciesDir
 } = require("./utils");
 
 async function uninstallPackage(package) {
@@ -78,13 +79,7 @@ async function installPackage(package) {
 
 	try {
 		const sampModulesDir = path.join(process.cwd(), "samp_modules");
-		const appDataDir =
-			process.env.APPDATA ||
-			(process.platform === "darwin"
-				? path.join(os.homedir(), "Library", "Application Support")
-				: path.join(os.homedir(), ".local", "share"));
-
-		const cacheDir = path.join(appDataDir, "spm", "cache");
+		const cacheDir = getCachedDependenciesDir();
 
 		if (!fs.existsSync(sampModulesDir))
 			fs.mkdirSync(sampModulesDir, { recursive: true });
@@ -185,4 +180,21 @@ async function installPackage(package) {
 	}
 }
 
-module.exports = { installPackage, uninstallPackage };
+async function clearCachedDependencies(options) {
+	if (options.clean) {
+		const cachedDependenciesDirPath = getCachedDependenciesDir();
+
+		try {
+			await fs.promises.rm(cachedDependenciesDirPath, {
+				recursive: true,
+				force: true,
+			});
+
+			console.log("SPM: cleanup cached dependencies");
+		} catch (error) {
+			console.log("Error: SPM encountered an error");
+		}
+	}
+}
+
+module.exports = { installPackage, clearCachedDependencies, uninstallPackage };

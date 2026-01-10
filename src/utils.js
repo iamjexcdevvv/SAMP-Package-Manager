@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 
 function isValidPackageFormat(package) {
 	const regex = /^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/;
@@ -28,10 +29,22 @@ function updatePawnConfigFile(configData) {
 	fs.writeFileSync("pawn.json", formattedStr);
 }
 
+function getCachedDependenciesDir() {
+	const appDataDir =
+		process.env.APPDATA ||
+		(process.platform === "darwin"
+			? path.join(os.homedir(), "Library", "Application Support")
+			: path.join(os.homedir(), ".local", "share"));
+
+	const cacheDir = path.join(appDataDir, "spm", "cache");
+	return cacheDir;
+}
+
 module.exports = {
 	isValidPackageFormat,
 	formatJSON,
 	isPawnConfigFileFound,
 	extractPackageNameAndOwner,
 	updatePawnConfigFile,
+	getCachedDependenciesDir,
 };
