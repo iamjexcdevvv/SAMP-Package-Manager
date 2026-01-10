@@ -48,41 +48,47 @@ const promptQuestions = [
 ];
 
 async function initSPM(options) {
-	if (options.yes) {
-		// The user skips the prompt
-		return;
-	}
+    let isAddDevFiles = true, isAddReadme = true, isInitializeGit = true;
+    let username = USERNAME, packageName = PACKAGENAME;
 
-	try {
+	if (!options.yes) {
 		const onCancel = (prompt) => {
 			console.log("ERROR: interrupt");
 			process.exit(1);
 		};
 
+        const response = await prompts(promptQuestions, { onCancel });
+
+        isAddDevFiles = response.devFiles;
+        isAddReadme = response.readmeFile;
+        isInitializeGit = response.gitinit;
+        username = response.username;
+        packageName = response.packageName;
+	}
+
+	try {
 		// Prompt for entry point this is used for compiling the gamemode
 		// const entryPoint = await askUser(
 		// 	"Choose an entry point - this is the file that is passed to the compiler."
 		// );
 
-		const response = await prompts(promptQuestions, { onCancel });
-
-		if (response.devFiles) {
+		if (isAddDevFiles) {
 			fs.writeFileSync(".gitignore", "");
 			fs.writeFileSync(".gitattributes", "");
 		}
 
-		if (response.readmeFile) {
+		if (isAddReadme) {
 			fs.writeFileSync("README.md", "");
 		}
 
-		if (response.gitinit) {
+		if (isInitializeGit) {
 			await git.init();
 			console.log("SPM: Initialized git repository");
 		}
 
 		const spmConfig = {
-			user: response.username,
-			repo: response.packageName,
+			user: username,
+			repo: packageName,
 		};
 
         const formattedStr = JSON.stringify(spmConfig, null, 4);
