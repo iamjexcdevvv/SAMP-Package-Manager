@@ -53,12 +53,32 @@ async function installPackage(package) {
 		if (!fs.existsSync(cacheDir))
 			fs.mkdirSync(cacheDir, { recursive: true });
 
-		const { data } = await octokit.rest.repos.get({
-			owner: username,
-			repo: repo,
-		});
+		let branch;
+		let metadata = {};
+		const metadataPath = path.join(cacheDir, "metadata.json");
 
-		const branch = data.default_branch;
+		if (fs.existsSync(metadataPath)) {
+			metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+		}
+
+		if (!metadata[package]) {
+			const { data } = await octokit.rest.repos.get({
+				owner: username,
+				repo: repo,
+			});
+
+			branch = data.default_branch;
+
+			metadata[package] = {
+				branch,
+				cachedAt: new Date().toISOString(),
+				lastUsed: new Date().toISOString(),
+			};
+
+			fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 4));
+		} else {
+			branch = metadata[package].branch;
+		}
 
 		const cachedPackagePath = path.join(cacheDir, `${repo}-${branch}`);
 
@@ -89,17 +109,36 @@ async function installPackage(package) {
 			fs.unlinkSync(tempZipPath);
 		}
 
-		fs.cpSync(extractedFolder, targetFolder, { recursive: true });
+		const pattern = path.join(
+			process.cwd(),
+			"samp_modules",
+			repo,
+			"**/*.inc"
+		);
+		let fileFound = false;
+
+		for await (const file of fs.promises.glob(pattern)) {
+			if (file) {
+				fileFound = true;
+				break;
+			}
+		}
+
+		if (!fileFound) {
+			fs.cpSync(extractedFolder, targetFolder, { recursive: true });
+		}
 
 		const config = await fs.promises.readFile(configFilePath, "utf8");
 		const configData = JSON.parse(config);
 		const dependencies = configData.dependencies || [];
 
-		dependencies.push(package);
-		configData.dependencies = dependencies;
+		if (!dependencies.includes(package)) {
+			dependencies.push(package);
+			configData.dependencies = dependencies;
 
-		const formattedStr = JSON.stringify(configData, null, 4);
-		fs.writeFileSync("pawn.json", formattedStr);
+			const formattedStr = JSON.stringify(configData, null, 4);
+			fs.writeFileSync("pawn.json", formattedStr);
+		}
 
 		console.log(`SPM: ${package} has been succesfully installed`);
 	} catch (error) {
