@@ -14,7 +14,53 @@ const unzipper = require("unzipper");
 const { pipeline } = require("stream/promises");
 
 // Custom modules
-const { isValidPackageFormat, formatJSON } = require("./utils");
+const {
+	isValidPackageFormat,
+	formatJSON,
+	isPawnConfigFileFound,
+	extractPackageNameAndOwner,
+	updatePawnConfigFile,
+	getCachedDependenciesDir
+} = require("./utils");
+
+async function uninstallPackage(package) {
+	if (!isPawnConfigFileFound()) {
+		console.error("SPM: Can't find the configuration file");
+		process.exit(1);
+	}
+
+	const pawnConfigFilePath = path.join(process.cwd(), "pawn.json");
+	const data = JSON.parse(fs.readFileSync(pawnConfigFilePath, "utf8"));
+	const dependencyIndex = data.dependencies.findIndex((v) => package === v);
+
+	if (dependencyIndex == -1) {
+		console.error("SPM: Can't find the specified dependency");
+		process.exit(1);
+	}
+
+	const { repo } = extractPackageNameAndOwner(package);
+
+	const dependencyDirPath = path.join(process.cwd(), "samp_modules", repo);
+
+	try {
+		const dirStats = await fs.promises.stat(dependencyDirPath);
+		const isDirectory = dirStats.isDirectory();
+
+		if (isDirectory) {
+			await fs.promises.rm(dependencyDirPath, {
+				recursive: true,
+				force: true,
+			});
+		}
+
+		data.dependencies.splice(dependencyIndex, 1);
+		updatePawnConfigFile(data);
+
+		console.log(`SPM: removed dependency ${package}`);
+	} catch (error) {
+		console.error("Error: SPM encountered an error");
+	}
+}
 
 async function installPackage(package) {
 	const isValid = isValidPackageFormat(package);
@@ -24,26 +70,16 @@ async function installPackage(package) {
 		process.exit(1);
 	}
 
-	const configFilePath = path.join(process.cwd(), "pawn.json");
-
-	if (!fs.existsSync(configFilePath)) {
+	if (!isPawnConfigFileFound()) {
 		console.error("SPM: Can't find the configuration file");
 		process.exit(1);
 	}
 
-	const separatorIdx = package.indexOf("/");
-	const username = package.slice(0, separatorIdx);
-	const repo = package.slice(separatorIdx + 1);
+	const { username, repo } = extractPackageNameAndOwner(package);
 
 	try {
 		const sampModulesDir = path.join(process.cwd(), "samp_modules");
-		const appDataDir =
-			process.env.APPDATA ||
-			(process.platform === "darwin"
-				? path.join(os.homedir(), "Library", "Application Support")
-				: path.join(os.homedir(), ".local", "share"));
-
-		const cacheDir = path.join(appDataDir, "spm", "cache");
+		const cacheDir = getCachedDependenciesDir();
 
 		if (!fs.existsSync(sampModulesDir))
 			fs.mkdirSync(sampModulesDir, { recursive: true });
@@ -73,7 +109,7 @@ async function installPackage(package) {
 				lastUsed: new Date().toISOString(),
 			};
 
-			fs.writeFileSync(metadataPath, formatJSON(metadata, 4));
+			await fs.promises.writeFile(metadataPath, formatJSON(metadata, 4));
 		} else {
 			branch = metadata[package].branch;
 		}
@@ -104,7 +140,7 @@ async function installPackage(package) {
 					.on("error", reject);
 			});
 
-			fs.unlinkSync(tempZipPath);
+			await fs.promises.unlink(tempZipPath);
 		}
 
 		const pattern = path.join(
@@ -126,7 +162,8 @@ async function installPackage(package) {
 			fs.cpSync(extractedFolder, targetFolder, { recursive: true });
 		}
 
-		const config = await fs.promises.readFile(configFilePath, "utf8");
+		const pawnConfigFilePath = path.join(process.cwd(), "pawn.json");
+		const config = await fs.promises.readFile(pawnConfigFilePath, "utf8");
 		const configData = JSON.parse(config);
 		const dependencies = configData.dependencies || [];
 
@@ -134,14 +171,30 @@ async function installPackage(package) {
 			dependencies.push(package);
 			configData.dependencies = dependencies;
 
-			const formattedStr = formatJSON(configData, 4);
-			fs.writeFileSync("pawn.json", formattedStr);
+			updatePawnConfigFile(configData);
 		}
 
 		console.log(`SPM: ${package} has been succesfully installed`);
 	} catch (error) {
-		console.log("Error: SPM encountered an error");
+		console.error("Error: SPM encountered an error");
 	}
 }
 
-module.exports = installPackage;
+async function clearCachedDependencies(options) {
+	if (options.clean) {
+		const cachedDependenciesDirPath = getCachedDependenciesDir();
+
+		try {
+			await fs.promises.rm(cachedDependenciesDirPath, {
+				recursive: true,
+				force: true,
+			});
+
+			console.log("SPM: cleanup cached dependencies");
+		} catch (error) {
+			console.log("Error: SPM encountered an error");
+		}
+	}
+}
+
+module.exports = { installPackage, clearCachedDependencies, uninstallPackage };
