@@ -140,8 +140,7 @@ async function installPackage(package) {
 
 		console.log(`SPM: ${package} has been succesfully installed`);
 	} catch (error) {
-		console.log(error);
-		// console.log("Error: SPM encountered an error");
+		console.log("Error: SPM encountered an error");
 	}
 }
 
