@@ -1,9 +1,13 @@
 const userConfig = require("../spm-config.json");
 const personalToken = userConfig.github_token || process.env.GITHUB_TOKEN;
 
+// Core Modules
+const fs = require("fs");
+const path = require("path");
+
 // Third-Party modules
 const { Octokit } = require("octokit");
-const octokit = new Octokit({ auth: personalToken });
+const octokit = new Octokit({ auth: personalToken, timeout: 10000 });
 
 const unzipper = require("unzipper");
 
@@ -18,7 +22,14 @@ async function installPackage(package) {
 	const isValid = isValidPackageFormat(package);
 
 	if (!isValid) {
-		console.error("Error: Invalid format. Use username/repo");
+		console.error("SPM: Invalid format. Use username/repo");
+		process.exit(1);
+	}
+
+	const configFilePath = path.join(process.cwd(), "pawn.json");
+
+	if (!fs.existsSync(configFilePath)) {
+		console.error("SPM: Can't find the configuration file");
 		process.exit(1);
 	}
 
@@ -80,10 +91,20 @@ async function installPackage(package) {
 
 		fs.cpSync(extractedFolder, targetFolder, { recursive: true });
 
+		const config = await fs.promises.readFile(configFilePath, "utf8");
+		const configData = JSON.parse(config);
+		const dependencies = configData.dependencies || [];
+
+		dependencies.push(package);
+		configData.dependencies = dependencies;
+
+		const formattedStr = JSON.stringify(configData, null, 4);
+		fs.writeFileSync("pawn.json", formattedStr);
+
 		console.log(`SPM: ${package} has been succesfully installed`);
 	} catch (error) {
-		console.log(error);
+		console.log("Error: SPM encountered an error");
 	}
 }
 
-module.exports = installPackage
+module.exports = installPackage;
