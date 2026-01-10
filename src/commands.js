@@ -11,6 +11,7 @@ program
 
 program
 	.command("install")
+	.alias("i")
 	.description("Install a specified SAMP library")
 	.argument("<package>", "A SAMP package to install")
 	.action((package) => installPackage(package));
