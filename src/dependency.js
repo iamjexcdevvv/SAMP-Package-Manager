@@ -20,7 +20,7 @@ const {
 	isPawnConfigFileFound,
 	extractDependencyInfo,
 	updatePawnConfigFile,
-	getCachedDependenciesDir
+	getCachedDependenciesDir,
 } = require("./utils");
 
 async function uninstallPackage(package) {
@@ -30,15 +30,16 @@ async function uninstallPackage(package) {
 	}
 
 	const pawnConfigFilePath = path.join(process.cwd(), "pawn.json");
-	const data = JSON.parse(fs.readFileSync(pawnConfigFilePath, "utf8"));
-	const dependencyIndex = data.dependencies.findIndex((v) => package === v);
+	const data = JSON.parse(
+		fs.readFileSync(pawnConfigFilePath, "utf8")
+	);
 
-	if (dependencyIndex == -1) {
+	const { repo } = extractDependencyInfo(package);
+
+	if (!Object.hasOwn(data.dependencies, repo)) {
 		console.error("SPM: Can't find the specified dependency");
 		process.exit(1);
 	}
-
-	const { repo } = extractDependencyInfo(package);
 
 	const dependencyDirPath = path.join(process.cwd(), "samp_modules", repo);
 
@@ -53,7 +54,7 @@ async function uninstallPackage(package) {
 			});
 		}
 
-		data.dependencies.splice(dependencyIndex, 1);
+		delete data.dependencies[repo];
 		updatePawnConfigFile(data);
 
 		console.log(`SPM: removed dependency ${package}`);
@@ -165,10 +166,10 @@ async function installPackage(package) {
 		const pawnConfigFilePath = path.join(process.cwd(), "pawn.json");
 		const config = await fs.promises.readFile(pawnConfigFilePath, "utf8");
 		const configData = JSON.parse(config);
-		const dependencies = configData.dependencies || [];
+		const dependencies = configData.dependencies || {};
 
-		if (!dependencies.includes(package)) {
-			dependencies.push(package);
+		if (!Object.hasOwn(dependencies, repo)) {
+			dependencies[repo] = branch;
 			configData.dependencies = dependencies;
 
 			updatePawnConfigFile(configData);
