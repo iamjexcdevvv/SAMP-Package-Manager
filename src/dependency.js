@@ -20,7 +20,8 @@ const {
 	isPawnConfigFileFound,
 	extractPackageNameAndOwner,
 	updatePawnConfigFile,
-	getCachedDependenciesDir
+	getCachedDependenciesDir,
+	downloadDependency,
 } = require("./utils");
 
 async function uninstallPackage(package) {
@@ -43,15 +44,10 @@ async function uninstallPackage(package) {
 	const dependencyDirPath = path.join(process.cwd(), "samp_modules", repo);
 
 	try {
-		const dirStats = await fs.promises.stat(dependencyDirPath);
-		const isDirectory = dirStats.isDirectory();
-
-		if (isDirectory) {
-			await fs.promises.rm(dependencyDirPath, {
-				recursive: true,
-				force: true,
-			});
-		}
+		await fs.promises.rm(dependencyDirPath, {
+			recursive: true,
+			force: true,
+		});
 
 		data.dependencies.splice(dependencyIndex, 1);
 		updatePawnConfigFile(data);
@@ -75,7 +71,11 @@ async function installPackage(package) {
 		process.exit(1);
 	}
 
+<<<<<<< Updated upstream
 	const { username, repo } = extractPackageNameAndOwner(package);
+=======
+	let { username, repo, version, specifier } = extractDependencyInfo(package);
+>>>>>>> Stashed changes
 
 	try {
 		const sampModulesDir = path.join(process.cwd(), "samp_modules");
@@ -87,7 +87,6 @@ async function installPackage(package) {
 		if (!fs.existsSync(cacheDir))
 			fs.mkdirSync(cacheDir, { recursive: true });
 
-		let branch;
 		let metadata = {};
 		const metadataPath = path.join(cacheDir, "metadata.json");
 
@@ -101,31 +100,36 @@ async function installPackage(package) {
 				repo: repo,
 			});
 
-			branch = data.default_branch;
+			if (!version) {
+				version = data.default_branch;
+			}
 
 			metadata[package] = {
-				branch,
+				version,
 				cachedAt: new Date().toISOString(),
 				lastUsed: new Date().toISOString(),
 			};
 
 			await fs.promises.writeFile(metadataPath, formatJSON(metadata, 4));
 		} else {
-			branch = metadata[package].branch;
+			version = metadata[package].version;
 		}
 
-		const cachedPackagePath = path.join(cacheDir, `${repo}-${branch}`);
+		const cachedPackagePath = path.join(cacheDir, `${repo}-${version}`);
 
-		const extractedFolder = path.join(cacheDir, `${repo}-${branch}`);
+		const extractedFolder = path.join(cacheDir, `${repo}-${version}`);
 		const targetFolder = path.join(sampModulesDir, repo);
 
 		if (!fs.existsSync(cachedPackagePath)) {
-			const downloadURL = `https://github.com/${username}/${repo}/archive/refs/heads/${branch}.zip`;
-
-			const response = await fetch(downloadURL);
+			const response = await downloadDependency(
+				specifier,
+				username,
+				repo,
+				version
+			);
 
 			if (!response.ok) {
-				console.error("Error: Can't download the library");
+				console.error("Error: Can't download the specified dependency");
 				process.exit(1);
 			}
 
