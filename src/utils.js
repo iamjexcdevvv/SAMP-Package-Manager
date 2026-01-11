@@ -20,28 +20,23 @@ function isPawnConfigFileFound() {
 function extractDependencyInfo(package) {
 	const separatorIdx = package.indexOf("/");
 	const branchSpecifierIdx = package.indexOf("@");
-	const releaseTagSpecifierIdx = package.indexOf(":")
+	const releaseTagSpecifierIdx = package.indexOf(":");
 	const commitHashSpecifierIdx = package.indexOf("#");
 
 	const dependencyInfo = {};
 	let remaining = package;
 
 	if (branchSpecifierIdx !== -1) {
-		dependencyInfo.version = package.slice(branchSpecifierIdx + 1);
+		dependencyInfo.specifiedVersion = package.slice(branchSpecifierIdx + 1);
 		remaining = remaining.slice(0, branchSpecifierIdx);
-	}
-	else if (releaseTagSpecifierIdx !== -1)
-	{
-		dependencyInfo.version = package.slice(releaseTagSpecifierIdx + 1);
+	} else if (releaseTagSpecifierIdx !== -1) {
+		dependencyInfo.specifiedVersion = package.slice(releaseTagSpecifierIdx + 1);
 		remaining = remaining.slice(0, releaseTagSpecifierIdx);
-	}
-	else if (commitHashSpecifierIdx !== -1)
-	{
-		dependencyInfo.version = package.slice(commitHashSpecifierIdx + 1);
+	} else if (commitHashSpecifierIdx !== -1) {
+		dependencyInfo.specifiedVersion = package.slice(commitHashSpecifierIdx + 1);
 		remaining = remaining.slice(0, commitHashSpecifierIdx);
-	}
-	else {
-		dependencyInfo.version = NULL;
+	} else {
+		dependencyInfo.specifiedVersion = null;
 	}
 
 	if (separatorIdx !== -1) {
@@ -49,45 +44,12 @@ function extractDependencyInfo(package) {
 		dependencyInfo.repo = remaining.slice(separatorIdx + 1);
 	}
 
-	dependencyInfo.specifier = package.charAt(branchSpecifierIdx) || package.charAt(releaseTagSpecifierIdx) || package.charAt(commitHashSpecifierIdx);
+	dependencyInfo.specifier =
+		package.charAt(releaseTagSpecifierIdx) ||
+		package.charAt(commitHashSpecifierIdx) ||
+		"@";
 
 	return dependencyInfo;
-}
-
-function getDownloadURLBySpecifier(specifier, username, repo, version)
-{
-	let downloadURL = `https://github.com/${username}/${repo}/archive`;
-
-	switch(specifier)
-	{
-		case '@':
-			downloadURL = downloadURL.concat(`/refs/heads/${version}.zip`);
-			break;
-		case ':':
-			downloadURL = downloadURL.concat(`/refs/tags/${version}.zip`);
-			break;
-		case '#': 
-			downloadURL = downloadURL.concat(`/${version}.zip`);
-			break;
-		default:
-			console.error("SPM: Unknown specifier");
-	}
-
-	return downloadURL;
-}
-
-async function downloadDependency(specifier, username, repo, version) {
-	const downloadURL = getDownloadURLBySpecifier(specifier, username, repo, version);
-
-	let response;
-
-	try {
-		response = await fetch(downloadURL);
-	} catch (error) {
-		console.error(error);
-	}
-
-	return response;
 }
 
 function updatePawnConfigFile(configData) {
@@ -113,5 +75,4 @@ module.exports = {
 	extractDependencyInfo,
 	updatePawnConfigFile,
 	getCachedDependenciesDir,
-	downloadDependency
 };
