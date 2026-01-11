@@ -10,6 +10,7 @@ const { Octokit } = require("octokit");
 const octokit = new Octokit({ auth: personalToken, timeout: 10000 });
 
 const unzipper = require("unzipper");
+const yoctoSpinner = require("yocto-spinner").default;
 
 const { pipeline } = require("stream/promises");
 
@@ -118,12 +119,17 @@ async function installPackage(package) {
 		if (!fs.existsSync(cachedPackagePath)) {
 			const downloadURL = `https://github.com/${username}/${repo}/archive/refs/heads/${branch}.zip`;
 
+			const spinner = yoctoSpinner({
+				text: "Downloading Package...",
+			}).start();
 			const response = await fetch(downloadURL);
 
 			if (!response.ok) {
-				console.error("Error: Can't download the library");
+				spinner.error("Error: Can't download the library");
 				process.exit(1);
 			}
+			
+			spinner.success("Downloaded Package");
 
 			const tempZipPath = path.join(sampModulesDir, `${repo}.zip`);
 			const fileStream = fs.createWriteStream(tempZipPath);
@@ -170,9 +176,10 @@ async function installPackage(package) {
 			updatePawnConfigFile(configData);
 		}
 
-		console.log(`SPM: ${package} has been succesfully installed`);
+		console.log(`SPM: ${package} dependency added`);
 	} catch (error) {
-		console.error("Error: SPM encountered an error");
+		console.log(error);
+		// console.error("Error: SPM encountered an error");
 	}
 }
 

@@ -16,7 +16,8 @@
     "octokit": "^5.0.5",
     "prompts": "^2.4.2",
     "simple-git": "^3.30.0",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "yocto-spinner": "^1.0.0"
   },
   "bin": {
     "spm": "./index.js"
