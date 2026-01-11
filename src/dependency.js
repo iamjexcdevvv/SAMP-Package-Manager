@@ -43,15 +43,10 @@ async function uninstallPackage(package) {
 	const dependencyDirPath = path.join(process.cwd(), "samp_modules", repo);
 
 	try {
-		const dirStats = await fs.promises.stat(dependencyDirPath);
-		const isDirectory = dirStats.isDirectory();
-
-		if (isDirectory) {
-			await fs.promises.rm(dependencyDirPath, {
-				recursive: true,
-				force: true,
-			});
-		}
+		await fs.promises.rm(dependencyDirPath, {
+			recursive: true,
+			force: true,
+		});
 
 		data.dependencies.splice(dependencyIndex, 1);
 		updatePawnConfigFile(data);
