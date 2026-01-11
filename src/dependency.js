@@ -18,7 +18,7 @@ const {
 	isValidPackageFormat,
 	formatJSON,
 	isPawnConfigFileFound,
-	extractPackageNameAndOwner,
+	extractDependencyInfo,
 	updatePawnConfigFile,
 	getCachedDependenciesDir,
 	downloadDependency,
@@ -39,7 +39,7 @@ async function uninstallPackage(package) {
 		process.exit(1);
 	}
 
-	const { repo } = extractPackageNameAndOwner(package);
+	const { repo } = extractDependencyInfo(package);
 
 	const dependencyDirPath = path.join(process.cwd(), "samp_modules", repo);
 
@@ -71,11 +71,7 @@ async function installPackage(package) {
 		process.exit(1);
 	}
 
-<<<<<<< Updated upstream
-	const { username, repo } = extractPackageNameAndOwner(package);
-=======
 	let { username, repo, version, specifier } = extractDependencyInfo(package);
->>>>>>> Stashed changes
 
 	try {
 		const sampModulesDir = path.join(process.cwd(), "samp_modules");
