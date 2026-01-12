@@ -35,6 +35,7 @@ const octokit = new Octokit({
 
 const unzipper = require("unzipper");
 const semver = require("semver");
+const yoctoSpinner = require("yocto-spinner").default;
 
 const { pipeline } = require("stream/promises");
 
@@ -149,6 +150,8 @@ async function installPackage(specifiedPackage) {
 			if (!specifiedVersion || !specifier) {
 				specifiedVersion = data.default_branch;
 			}
+			
+			spinner.success("Downloaded Package");
 
 			const { response, availableVersions, resolvedVersion } =
 				await downloadDependency(
@@ -224,9 +227,7 @@ async function installPackage(specifiedPackage) {
 			updatePawnConfigFile(configData);
 		}
 
-		console.error(
-			`SPM: ${specifiedPackage} has been succesfully installed`
-		);
+		console.log(`SPM: ${package} dependency added`);
 	} catch (error) {
 		console.log(error);
 		// console.error("Error: SPM encountered an error");
