@@ -77,7 +77,8 @@ async function uninstallPackage(package) {
 
 		console.error(`SPM: removed dependency ${package}`);
 	} catch (error) {
-		console.error("Error: SPM encountered an error");
+		console.log(error);
+		// console.error("Error: SPM encountered an error");
 	}
 }
 
@@ -115,23 +116,29 @@ async function installPackage(specifiedPackage) {
 			metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
 		}
 
-		let range = semver.validRange(specifiedVersion);
 		let cachedPackagePath = "";
 
-		if (range && metadata[package]?.availableVersions?.length > 0) {
-			metadata[package].availableVersions.sort(semver.rcompare);
-			const resolvedVersion = semver.maxSatisfying(
-				metadata[package].availableVersions,
-				range
-			);
+		if (Object.hasOwn(metadata, package)) {
+			if (semver.validRange(metadata[package].specifiedVersion)) {
+				metadata[package].availableVersions.sort(semver.rcompare);
+				const resolvedVersion = semver.maxSatisfying(
+					metadata[package].availableVersions,
+					range
+				);
+
+				cachedPackagePath = path.join(
+					cacheDir,
+					`${repo}-${resolvedVersion}`
+				);
+			}
+
+			specifiedVersion = metadata[package].specifiedVersion;
 
 			cachedPackagePath = path.join(
 				cacheDir,
-				`${repo}-${resolvedVersion}`
+				`${repo}-${metadata[package].specifiedVersion}`
 			);
 		}
-
-		const targetFolder = path.join(sampModulesDir, repo);
 
 		if (!fs.existsSync(cachedPackagePath)) {
 			const { data } = await octokit.rest.repos.get({
@@ -151,9 +158,9 @@ async function installPackage(specifiedPackage) {
 					specifier
 				);
 
-			if (!response.ok) {
+			if (!response?.ok) {
 				console.error("Error: Can't download the specified dependency");
-				process.exit(1);
+				return;
 			}
 
 			cachedPackagePath = path.join(
@@ -199,6 +206,8 @@ async function installPackage(specifiedPackage) {
 			}
 		}
 
+		const targetFolder = path.join(sampModulesDir, repo);
+
 		if (!fileFound) {
 			fs.cpSync(cachedPackagePath, targetFolder, { recursive: true });
 		}
@@ -236,37 +245,33 @@ async function clearCachedDependencies(options) {
 
 			console.log("SPM: cleanup cached dependencies");
 		} catch (error) {
-			console.error("Error: SPM encountered an error");
+			console.log(error);
+			// console.error("Error: SPM encountered an error");
 		}
 	}
 }
 
 async function downloadDependency(username, repo, version, specifier = "@") {
 	// TODO: Handle dependency versioning
-	let response;
-	const availableVersions = [];
+	let response = {};
+	let availableVersions = [];
 
 	try {
 		if (specifier === ":") {
 			const range = semver.validRange(version);
 
 			if (!range && !semver.valid(version)) {
-				console.error("SPM: Invalid release version");
-				process.exit(1);
+				return response;
 			}
 
 			if (range) {
-				const { data } = await octokit.rest.repos.listTags({
-					owner: username,
-					repo: repo,
-				});
-
-				data.forEach((v) => availableVersions.push(v.name));
-				availableVersions.sort(semver.rcompare);
-
+				availableVersions = await fetchDependencyVersions(
+					username,
+					repo
+				);
 				const resolvedVersion = semver.maxSatisfying(
 					availableVersions,
-					version
+					range
 				);
 
 				if (!resolvedVersion) {
@@ -314,6 +319,25 @@ function getDownloadURLBySpecifier(username, repo, version, specifier = "@") {
 	}
 
 	return downloadURL;
+}
+
+async function fetchDependencyVersions(username, repo) {
+	const availableVersions = [];
+
+	try {
+		const { data } = await octokit.rest.repos.listTags({
+			owner: username,
+			repo: repo,
+		});
+
+		data.forEach((v) => availableVersions.push(v.name));
+		availableVersions.sort(semver.rcompare);
+	} catch (error) {
+		console.log(error);
+		// console.error("Error: SPM encountered an error");
+	}
+
+	return availableVersions;
 }
 
 module.exports = {
