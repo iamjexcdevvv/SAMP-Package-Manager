@@ -15,7 +15,7 @@ const octokit = new Octokit({
 	throttle: {
 		onRateLimit: (retryAfter, options) => {
 			octokit.log.warn(
-				`Request quota exhausted for request ${options.method} ${options.url}`
+				`Request quota exhausted for request ${options.method} ${options.url}`,
 			);
 
 			// Retry twice after hitting a rate limit error, then give up
@@ -27,7 +27,7 @@ const octokit = new Octokit({
 		onSecondaryRateLimit: (retryAfter, options, octokit) => {
 			// does not retry, only logs a warning
 			octokit.log.warn(
-				`Secondary quota detected for request ${options.method} ${options.url}`
+				`Secondary quota detected for request ${options.method} ${options.url}`,
 			);
 		},
 	},
@@ -35,9 +35,10 @@ const octokit = new Octokit({
 
 const unzipper = require("unzipper");
 const semver = require("semver");
-const yoctoSpinner = require("yocto-spinner").default;
 
 const { pipeline } = require("stream/promises");
+
+const yoctoSpinner = require("yocto-spinner").default;
 
 // Custom modules
 const {
@@ -67,6 +68,8 @@ async function uninstallDependency(package) {
 
 	const dependencyDirPath = path.join(process.cwd(), "samp_modules", repo);
 
+	const spinner = yoctoSpinner({ text: "Uninstalling dependency..." }).start();
+
 	try {
 		await fs.promises.rm(dependencyDirPath, {
 			recursive: true,
@@ -76,7 +79,7 @@ async function uninstallDependency(package) {
 		delete data.dependencies[package];
 		updatePawnConfigFile(data);
 
-		console.error(`SPM: removed dependency ${package}`);
+		spinner.success(`SPM: removed dependency ${package}`);
 	} catch (error) {
 		console.log(error);
 		// console.error("Error: SPM encountered an error");
@@ -124,12 +127,12 @@ async function installDependency(specifiedPackage) {
 				metadata[package].availableVersions.sort(semver.rcompare);
 				const resolvedVersion = semver.maxSatisfying(
 					metadata[package].availableVersions,
-					range
+					range,
 				);
 
 				cachedPackagePath = path.join(
 					cacheDir,
-					`${repo}-${resolvedVersion}`
+					`${repo}-${resolvedVersion}`,
 				);
 			}
 
@@ -137,11 +140,15 @@ async function installDependency(specifiedPackage) {
 
 			cachedPackagePath = path.join(
 				cacheDir,
-				`${repo}-${metadata[package].specifiedVersion}`
+				`${repo}-${metadata[package].specifiedVersion}`,
 			);
 		}
 
+		const spinner = yoctoSpinner();
+
 		if (!fs.existsSync(cachedPackagePath)) {
+			spinner.start("Downloading Dependency...");
+
 			const { data } = await octokit.rest.repos.get({
 				owner: username,
 				repo: repo,
@@ -150,25 +157,23 @@ async function installDependency(specifiedPackage) {
 			if (!specifiedVersion || !specifier) {
 				specifiedVersion = data.default_branch;
 			}
-			
-			spinner.success("Downloaded Package");
 
 			const { response, availableVersions, resolvedVersion } =
 				await downloadDependency(
 					username,
 					repo,
 					specifiedVersion,
-					specifier
+					specifier,
 				);
 
 			if (!response?.ok) {
-				console.error("Error: Can't download the specified dependency");
+				spinner.error("SPM: Can't download the specified dependency");
 				return;
 			}
 
 			cachedPackagePath = path.join(
 				cacheDir,
-				`${repo}-${resolvedVersion}`
+				`${repo}-${resolvedVersion}`,
 			);
 
 			const tempZipPath = path.join(sampModulesDir, `${repo}.zip`);
@@ -198,7 +203,7 @@ async function installDependency(specifiedPackage) {
 			process.cwd(),
 			"samp_modules",
 			repo,
-			"**/*.inc"
+			"**/*.inc",
 		);
 		let fileFound = false;
 
@@ -227,7 +232,7 @@ async function installDependency(specifiedPackage) {
 			updatePawnConfigFile(configData);
 		}
 
-		console.log(`SPM: ${package} dependency added`);
+		spinner.start().success("SPM: Dependency installed");
 	} catch (error) {
 		console.log(error);
 		// console.error("Error: SPM encountered an error");
@@ -268,16 +273,16 @@ async function downloadDependency(username, repo, version, specifier = "@") {
 			if (range) {
 				availableVersions = await fetchDependencyVersions(
 					username,
-					repo
+					repo,
 				);
 				const resolvedVersion = semver.maxSatisfying(
 					availableVersions,
-					range
+					range,
 				);
 
 				if (!resolvedVersion) {
 					console.error(
-						`No version of ${username}/${repo} satisfies "${version}"`
+						`No version of ${username}/${repo} satisfies "${version}"`,
 					);
 					process.exit(1);
 				}
@@ -290,7 +295,7 @@ async function downloadDependency(username, repo, version, specifier = "@") {
 			username,
 			repo,
 			version,
-			specifier
+			specifier,
 		);
 
 		response = await fetch(downloadURL);
