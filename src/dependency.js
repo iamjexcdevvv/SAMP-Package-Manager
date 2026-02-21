@@ -49,7 +49,7 @@ const {
 	getCachedDependenciesDir,
 } = require("./utils");
 
-async function uninstallPackage(package) {
+async function uninstallDependency(package) {
 	if (!isPawnConfigFileFound()) {
 		console.error("SPM: Can't find the configuration file");
 		process.exit(1);
@@ -83,7 +83,7 @@ async function uninstallPackage(package) {
 	}
 }
 
-async function installPackage(specifiedPackage) {
+async function installDependency(specifiedPackage) {
 	const isValid = isValidPackageFormat(specifiedPackage);
 
 	if (!isValid) {
@@ -342,7 +342,7 @@ async function fetchDependencyVersions(username, repo) {
 }
 
 module.exports = {
-	installPackage,
+	installDependency,
 	clearCachedDependencies,
-	uninstallPackage,
+	uninstallDependency,
 };
