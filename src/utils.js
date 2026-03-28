@@ -3,7 +3,8 @@ const fs = require("fs");
 const os = require("os");
 
 function isValidPackageFormat(package) {
-	const regex = /^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/;
+	const regex =
+		/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)([@:#][a-zA-Z0-9_.\/-]+)?$/;
 	return regex.test(package);
 }
 
@@ -18,10 +19,37 @@ function isPawnConfigFileFound() {
 
 function extractDependencyInfo(package) {
 	const separatorIdx = package.indexOf("/");
-	const username = package.slice(0, separatorIdx);
-	const repo = package.slice(separatorIdx + 1);
+	const branchSpecifierIdx = package.indexOf("@");
+	const releaseTagSpecifierIdx = package.indexOf(":");
+	const commitHashSpecifierIdx = package.indexOf("#");
 
-	return { username, repo };
+	const dependencyInfo = {};
+	let remaining = package;
+
+	if (branchSpecifierIdx !== -1) {
+		dependencyInfo.specifiedVersion = package.slice(branchSpecifierIdx + 1);
+		remaining = remaining.slice(0, branchSpecifierIdx);
+	} else if (releaseTagSpecifierIdx !== -1) {
+		dependencyInfo.specifiedVersion = package.slice(releaseTagSpecifierIdx + 1);
+		remaining = remaining.slice(0, releaseTagSpecifierIdx);
+	} else if (commitHashSpecifierIdx !== -1) {
+		dependencyInfo.specifiedVersion = package.slice(commitHashSpecifierIdx + 1);
+		remaining = remaining.slice(0, commitHashSpecifierIdx);
+	} else {
+		dependencyInfo.specifiedVersion = null;
+	}
+
+	if (separatorIdx !== -1) {
+		dependencyInfo.username = remaining.slice(0, separatorIdx);
+		dependencyInfo.repo = remaining.slice(separatorIdx + 1);
+	}
+
+	dependencyInfo.specifier =
+		package.charAt(releaseTagSpecifierIdx) ||
+		package.charAt(commitHashSpecifierIdx) ||
+		"@";
+
+	return dependencyInfo;
 }
 
 function updatePawnConfigFile(configData) {
